@@ -8,6 +8,10 @@ import pprint
 
 from artiq.protocols.pc_rpc import Client
 
+import json
+
+def kwdict(string):
+    return json.loads(string)
 
 def get_argparser():
     parser = argparse.ArgumentParser(
@@ -24,10 +28,13 @@ def get_argparser():
     parser_list_methods.add_argument("-t", "--target", help="target name")
     parser_call = subparsers.add_parser("call", help="call a target's method")
     parser_call.add_argument("-t", "--target", help="target name")
+    parser_call.add_argument("-k", "--kwargs", help = "keyword arguments", type=kwdict)
     parser_call.add_argument("method", help="method name")
+
     parser_call.add_argument("args", nargs=argparse.REMAINDER,
                              help="arguments")
     return parser
+
 
 
 def list_targets(target_names, description):
@@ -38,14 +45,14 @@ def list_targets(target_names, description):
 
 def list_methods(remote):
     doc = remote.get_rpc_method_list()
-    if doc["docstring"] is not None:
+    if doc.get("docstring", None) is not None:
         print(doc["docstring"])
         print()
-    for name, (argspec, docstring) in sorted(doc["methods"].items()):
+    for name, (argspec, docstring) in sorted(doc.get("methods", {}).items()):
         args = ""
         for arg in argspec["args"]:
             args += arg
-            if argspec["defaults"] is not None:
+            if argspec.get("defaults", None) is not None:
                 kword_index = len(argspec["defaults"]) - len(argspec["args"])\
                     + argspec["args"].index(arg)
                 if kword_index >= 0:
@@ -55,18 +62,18 @@ def list_methods(remote):
                         args += "={}".format(argspec["defaults"][kword_index])
             if argspec["args"].index(arg) < len(argspec["args"]) - 1:
                 args += ", "
-        if argspec["varargs"] is not None:
+        if argspec.get("varargs", None) is not None:
             args += ", *{}".format(argspec["varargs"])
-        elif len(argspec["kwonlyargs"]) > 0:
+        elif len(argspec.get("kwonlyargs",[])) > 0:
                 args += ", *"
-        for kwonlyarg in argspec["kwonlyargs"]:
+        for kwonlyarg in argspec.get("kwonlyargs", []):
             args += ", {}".format(kwonlyarg)
-            if kwonlyarg in argspec["kwonlydefaults"]:
+            if kwonlyarg in argspec.get("kwonlydefaults", []):
                 if argspec["kwonlydefaults"][kwonlyarg] == Ellipsis:
                     args += "=..."
                 else:
                     args += "={}".format(argspec["kwonlydefaults"][kwonlyarg])
-        if argspec["varkw"] is not None:
+        if argspec.get("varkw", None) is not None:
             args += ", **{}".format(argspec["varkw"])
         print("{}({})".format(name, args))
         if docstring is not None:
@@ -74,9 +81,9 @@ def list_methods(remote):
         print()
 
 
-def call_method(remote, method_name, args):
+def call_method(remote, method_name, args, kwargs):
     method = getattr(remote, method_name)
-    ret = method(*[eval(arg) for arg in args])
+    ret = method(*[eval(arg) for arg in args], **kwargs)
     if ret is not None:
         pprint.pprint(ret)
 
@@ -104,7 +111,11 @@ def main():
     elif args.action == "list-methods":
         list_methods(remote)
     elif args.action == "call":
-        call_method(remote, args.method, args.args)
+        print(args.args)
+        print(args.kwargs)
+        if args.kwargs is None:
+            args.kwargs = {}
+        call_method(remote, args.method, args.args, args.kwargs)
     else:
         print("Unrecognized action: {}".format(args.action))
 

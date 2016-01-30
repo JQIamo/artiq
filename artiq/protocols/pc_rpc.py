@@ -23,6 +23,7 @@ from operator import itemgetter
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
 
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,8 @@ class Client:
         self.__socket.close()
 
     def __send(self, obj):
-        line = pyon.encode(obj) + "\n"
+        #line = pyon.encode(obj) + "\n"
+        line = json.dumps(obj) + "\n"
         self.__socket.sendall(line.encode())
 
     def __recv(self):

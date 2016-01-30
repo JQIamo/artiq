@@ -79,7 +79,7 @@ class _Encoder:
 
     def encode_tuple(self, x):
         if len(x) == 1:
-            return "(" + self.encode(x[0]) + ", )"
+            return "(" + self.encode(x[0]) + ")"
         else:
             r = "("
             r += ", ".join([self.encode(item) for item in x])
